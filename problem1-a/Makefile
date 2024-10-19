@@ -97,7 +97,7 @@ INCLUDES      := -I$(CUDA_INC_PATH) -I. -I.. -I../../common/inc
 # Target rules
 all: build
 
-build: cuda_hello cuda_hello1
+build: cuda_hello cuda_hello1 query
 
 cuda_hello.o: cuda_hello.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(INCLUDES) -o $@ -c $<
@@ -109,6 +109,12 @@ cuda_hello1.o: cuda_hello1.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(INCLUDES) -o $@ -c $<
 
 cuda_hello1: cuda_hello1.o
+	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
+ 
+query.o: query.cu
+	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(INCLUDES) -o $@ -c $<
+
+query: query.o
 	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 clean:

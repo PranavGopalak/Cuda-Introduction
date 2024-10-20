@@ -97,7 +97,7 @@ INCLUDES      := -I$(CUDA_INC_PATH) -I. -I.. -I../../common/inc
 # Target rules
 all: build
 
-build: cuda_trap1 cuda_trap2 cuda_trap3 cuda_trap2b cuda_trap3b trap
+build: cuda_trap1 cuda_trap2 cuda_trap3 cuda_trap2b cuda_trap3b trap modified_trap1
 
 trap.o: trap.c
 	$(GCC) $(CCFLAGS) $(INCLUDES) -o $@ -c $<
@@ -133,6 +133,12 @@ cuda_trap3b.o: cuda_trap3b.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(INCLUDES) -o $@ -c $<
 
 cuda_trap3b: cuda_trap3b.o
+	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
+
+modified_trap1.o: modified_trap1.cu
+	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(INCLUDES) -o $@ -c $<
+
+modified_trap1: modified_trap1.o
 	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 clean:

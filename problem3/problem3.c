@@ -294,5 +294,5 @@ double func_to_integrate(double x)
 
 double func_velocity(double time, double *velocity_profile, double step_size)
 {
-    return fvelo(time);
+    return fvelo(time, velocity_profile, step_size);
 }

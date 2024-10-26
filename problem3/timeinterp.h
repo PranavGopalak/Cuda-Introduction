@@ -8,7 +8,7 @@
 //
 double table_accel(int timeidx);
 
-double table_velo(int timeidx);
+double table_velo(int timeidx, double *velocity_profile);
 
 
 // indirect generation of acceleration or velocity at any time with table interpolation
@@ -17,6 +17,6 @@ double table_velo(int timeidx);
 //       function that each uses the correct table.
 double faccel(double time);
 
-double fvelo(double time);
+double fvelo(double time, double *velocity_profile, double step_size);
 
 #endif // TIMEINTERP_H

@@ -81,18 +81,18 @@ double table_accel(int timeidx)
     return DefaultProfile[timeidx];
 }
 
-double table_velo(int timeidx)
+double table_velo(int timeidx, double *velocity_profile)
 {
-    long unsigned int tsize = sizeof(VelocityProfile) / sizeof(double);
+    //long unsigned int tsize = sizeof(velocity_profile) / sizeof(double);
 
     // Check array bounds for look-up table
-    if(timeidx > tsize)
-    {
-        printf("timeidx=%d exceeds table size = %lu and range %d to %lu\n", timeidx, tsize, 0, tsize-1);
-        exit(-1);
-    }
+    // if(timeidx > tsize)
+    // {
+    //     printf("timeidx=%d exceeds table size = %lu and range %d to %lu\n", timeidx, tsize, 0, tsize-1);
+    //     exit(-1);
+    // }
 
-    return VelocityProfile[timeidx];
+    return velocity_profile[timeidx];
 }
 
 
@@ -139,27 +139,19 @@ double faccel(double time)
            );
 }
 
-double fvelo(double time)
+double fvelo(double time, double *velocity_profile, double step_size)
 {
     // The timeidx is an index into the known acceleration profile at a time <= time of interest passed in
     //
     // Note that conversion to integer truncates double to next lowest integer value or floor(time)
     //
-    int timeidx = (int)time;
+    int timeidx = (int)time/step_size;
 
     // The timeidx_next is an index into the known acceleration profile at a time > time of interest passed in
     //
     // Note that the conversion to integer truncates double and the +1 is added for ceiling(time)
     //
-    int timeidx_next = ((int)time)+1;
-
-    // delta_t = time of interest - time at known value < time
-    //
-    // For more general case
-    // double delta_t = (time - (double)((int)time)) / ((double)(timeidx_next - timeidx);
-    //
-    // If time in table is always 1 second apart, then we can simplify since (timeidx_next - timeidx) = 1.0 by definition here
-    double delta_t = time - (double)((int)time);
+    int timeidx_next = ((int)(time/step_size))+1;
 
     return ( 
                // The accel[time] is a linear value between accel[timeidx] and accel[timeidx_next]
@@ -172,6 +164,6 @@ double fvelo(double time)
                // 
                //      accel[time] = accel[timeidx] + (accel[timeidx_next] - accel[timeidx]) * delta_t
                //
-               table_velo(timeidx) + ( (table_velo(timeidx_next) - table_velo(timeidx)) * delta_t)
+               table_velo(timeidx, velocity_profile) + ( (table_velo(timeidx_next, velocity_profile) - table_velo(timeidx, velocity_profile)) * step_size)
            );
 }

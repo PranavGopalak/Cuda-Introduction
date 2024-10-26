@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 
     double a = 0.0;
     double b = 1800;
-    int n = (b - a) * 10000;
+    int n = (b - a)/step_size;
     int comm_sz;
     int my_rank;
     double local_final_velocity = 0.0, final_velocity = 0.0;

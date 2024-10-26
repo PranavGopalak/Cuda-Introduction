@@ -197,8 +197,8 @@ int main(int argc, char *argv[])
             printf("\nTRACE: Rank %d sum of local_displacement = %lf\n", my_rank, final_displacement);
 
     #endif
-        printf("Final displacement(km) = %f\n", local_displacement[n - 1] / 1000);
-        printf("Steady State peak velocity(km/h)= %f\n", local_velocity[n / 2] * 3.6);
+        printf("Final displacement(km) = %.15f\n", local_displacement[n - 1] / 1000);
+        printf("Steady State peak velocity(km/h)= %.15f\n", local_velocity[n / 2] * 3.6);
     }
 
     MPI_Finalize();

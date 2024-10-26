@@ -26,15 +26,16 @@
 #include <mpi.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
 
-#define DEBUG_TRACE
+// #define DEBUG_TRACE
 
 // Function tables used in Ex #3 and #4 as well as test profiles for sine and a constant
 // All funcitons have 1801 entries for time = 0.0 to 1800.0
 #include "timeinterp.h"
-//#include "ex3.h"
-//#include "sine.h"
-//#include "const.h"
+// #include "ex3.h"
+// #include "sine.h"
+// #include "const.h"
 
 const int MAX_STRING = 512;
 double func_to_integrate(double x);
@@ -42,181 +43,167 @@ double func_velocity(double time, double *velocity_profile, double step_size);
 double Simpson(double left_endpt, double right_endpt, int num_intervals, double base_len, double *values);
 double Simpson_velo(double left_endpt, double right_endpt, int num_intervals, double base_len, double *values, double *velocity_profile);
 
-int main(void)
+int main(int argc, char *argv[])
 {
+    double step_size = 1.0 / 10000.0;
+    if (argc == 2)
+    {
+        step_size = atof(argv[1]);
+    }
 
     double a = 0.0;
     double b = 1800;
     int n = (b - a) * 10000;
-    double step_size = 1.0 / 10000.0;
-    char greeting[MAX_STRING];
-    char hostname[MAX_STRING];
-    char nodename[MAX_STRING];
     int comm_sz;
-    int my_rank, namelen;
-    double local_final_velocity=0.0, final_velocity=0.0;
-    double local_final_displacement=0.0, final_displacement=0.0;
+    int my_rank;
+    double local_final_velocity = 0.0, final_velocity = 0.0;
+    double local_final_displacement = 0.0, final_displacement = 0.0;
+    double fnow, fstart;
+    struct timespec now, start;
 
     double *local_velocity = (double *)malloc(n * sizeof(double));
-    if (local_velocity == NULL) {
+    if (local_velocity == NULL)
+    {
         fprintf(stderr, "Failed to allocate memory for local_velocity\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
     double *local_displacement = (double *)malloc(n * sizeof(double));
-    if (local_displacement == NULL) {
+    if (local_displacement == NULL)
+    {
         fprintf(stderr, "Failed to allocate memory for local_displacement\n");
         free(local_velocity); // Free previously allocated memory
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
     int subrange, residual;
-    printf("n = %d\n", n);
 
-    for(int idx = 0; idx < n; idx++)
+    for (int idx = 0; idx < n; idx++)
     {
-        local_velocity[idx]=0.0;
-        local_displacement[idx]=0.0;
+        local_velocity[idx] = 0.0;
+        local_displacement[idx] = 0.0;
     }
 
-    printf("Will divide up work for input table of size = %d\n", n);
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
+    if (my_rank == 0)
+    {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        fstart = (double)start.tv_sec + (double)start.tv_nsec / 1000000000.0;
+    }
+
     subrange = n / comm_sz;
     residual = n % comm_sz;
 
+#ifdef DEBUG_TRACE
     printf("Went parallel: rank %d of %d doing work %d with residual %d\n", my_rank, comm_sz, subrange, residual);
-
+#endif
     // START PARALLEL PHASE 1: Sum original DefaultProfile LUT by rank
     //
 
     // Now sum up the values in the LUT function
-    local_final_velocity = Simpson(my_rank*subrange, (my_rank*subrange)+subrange, subrange, step_size, &local_velocity[my_rank*subrange]);
-    if(my_rank != 0)
-    {
-        gethostname(hostname, MAX_STRING);
-        MPI_Get_processor_name(nodename, &namelen);
-
-        sprintf(greeting, "Sum of Velocity for rank %d of %d on %s is %lf", my_rank, comm_sz, nodename, local_final_velocity);
-        MPI_Send(greeting, strlen(greeting)+1, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
-    }
-    else
-    {
-
-        gethostname(hostname, MAX_STRING);
-        MPI_Get_processor_name(nodename, &namelen);
-        printf("Sum of Velocity for rank %d of %d on %s is %lf\n", my_rank, comm_sz, nodename, local_final_velocity);
-
-        for(int q=1; q < comm_sz; q++)
-        {
-            MPI_Recv(greeting, MAX_STRING, MPI_CHAR, q, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            printf("%s\n", greeting);
-        }
-    }
+    local_final_velocity = Simpson(my_rank * subrange, (my_rank * subrange) + subrange, subrange, step_size, &local_velocity[my_rank * subrange]);
 
     // This should be the summation of DefaultProfile, which should match the spreadsheet for a train profile for dt=1.0
     MPI_Reduce(&local_final_velocity, &final_velocity, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    if(my_rank == 0) printf("\nRank 0 final_velocity = %lf\n", final_velocity);
 
     MPI_Barrier(MPI_COMM_WORLD);
 
     // DISTRIBUTE RESULTS: Now to correct and overwrite all local_velocity, update all ranks with full table by sending
     // portion of table from each rank > 0 to rank=0, to fill in missing default data
-    if(my_rank != 0)
+    if (my_rank != 0)
     {
-        MPI_Send(&local_velocity[my_rank*subrange], subrange, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+        MPI_Send(&local_velocity[my_rank * subrange], subrange, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
     }
     else
     {
-        for(int q=1; q < comm_sz; q++)
+        for (int q = 1; q < comm_sz; q++)
         {
-            MPI_Recv(&local_velocity[q*subrange], subrange, MPI_DOUBLE, q, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&local_velocity[q * subrange], subrange, MPI_DOUBLE, q, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
             // Adjust so initial condition is ending conditon of prior sum - SUPER IMPORTANT to adjust initial condition offset
-            for(int idx = q*subrange; idx < (q*subrange)+subrange; idx++)
-                local_velocity[idx] += local_velocity[((q-1)*subrange)+subrange-1];
+            for (int idx = q * subrange; idx < (q * subrange) + subrange; idx++)
+                local_velocity[idx] += local_velocity[((q - 1) * subrange) + subrange - 1];
         }
-               
-
     }
     // Make sure all ranks have the full new default table
     MPI_Bcast(&local_velocity[0], n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     // END PARALLEL PHASE 1: Every rank has the same updated local_velocity table now
 
-
     // TRACE: Just a double check on the FIRST MPI_Reduce and trace output of first phase
-    if(my_rank == 0)
+    if (my_rank == 0)
     {
 #ifdef DEBUG_TRACE
         // Now rank zero has the data from each of the other ranks in one new table
         printf("\nTRACE: Rank %d sum of local_velocity = %lf\n", my_rank, final_velocity);
-            printf("Final velocity = %f\n", local_velocity[n-1] * 3.6);
-    printf("Midpoint velocity = %f\n", local_velocity[n/2] * 3.6);
-    printf("200th velocity = %f\n", local_velocity[200 * 10000] * 3.6);
-    printf("1600th velocity = %f\n", local_velocity[1600 * 10000] * 3.6);
-            // for(int idx = 0; idx < n; idx+=100)
+        printf("Final velocity = %f\n", local_velocity[n - 1] * 3.6);
+        printf("Midpoint velocity = %f\n", local_velocity[n / 2] * 3.6);
+        printf("200th velocity = %f\n", local_velocity[200 * 10000] * 3.6);
+        printf("1600th velocity = %f\n", local_velocity[1600 * 10000] * 3.6);
+        // for(int idx = 0; idx < n; idx+=100)
         //     printf("t=%f: a=%lf for v=%lf\n", idx * step_size, func_to_integrate(idx * step_size), local_velocity[idx-1] * 3.6);
 #endif
     }
-
 
     // START PARALLEL PHASE 2: Now that all ranks have the new local_velocity table, we can proceed to sum all of those sums as before
     //
     // Do the next round of summing from the new table
     //
-    local_final_displacement=0; //  for second integration
+    local_final_displacement = 0; //  for second integration
 
     // Now sum up the values in the new LUT function local_velocity
-    local_final_displacement= Simpson_velo(my_rank*subrange, (my_rank*subrange)+subrange, subrange, step_size, &local_displacement[my_rank*subrange], local_velocity);
-    
+    local_final_displacement = Simpson_velo(my_rank * subrange, (my_rank * subrange) + subrange, subrange, step_size, &local_displacement[my_rank * subrange], local_velocity);
+
     // This should be the summation of the sums, which should match the spreadsheet for a train profile for dt=1.0
     MPI_Reduce(&local_final_displacement, &final_displacement, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    if(my_rank == 0) {
-        printf("\nFinal Displacement = %lf\n", final_displacement/1000);
-    }
 
     // DISTRIBUTE: Finally correct and overwrite all local_velocity_of_sums, update all ranks with full table by sending
     // portion of table from each rank > 0 to rank=0, to fill in missing default data
-    if(my_rank != 0)
+    if (my_rank != 0)
     {
-        MPI_Send(&local_displacement[my_rank*subrange], subrange, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+        MPI_Send(&local_displacement[my_rank * subrange], subrange, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
     }
     else
     {
-        for(int q=1; q < comm_sz; q++)
+        for (int q = 1; q < comm_sz; q++)
         {
-            MPI_Recv(&local_displacement[q*subrange], subrange, MPI_DOUBLE, q, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&local_displacement[q * subrange], subrange, MPI_DOUBLE, q, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
             // Adjust so initial condition is ending conditon of prior sum - SUPER IMPORTANT to adjust initial condition offset
-            for(int idx = q*subrange; idx < (q*subrange)+subrange; idx++)
-                local_displacement[idx] += local_displacement[((q-1)*subrange)+subrange-1];
+            for (int idx = q * subrange; idx < (q * subrange) + subrange; idx++)
+                local_displacement[idx] += local_displacement[((q - 1) * subrange) + subrange - 1];
         }
-        printf("Final displacement = %f\n", local_displacement[n-1]/1000);
-        printf("Midpoint displacement = %f\n", local_displacement[n/2]/1000);
-        printf("quarter displacement = %f\n", local_displacement[n/4]/1000);
-        printf("1000th displacement = %f\n", local_displacement[1000 * 10000]/1000);
+    #ifdef DEBUG_TRACE
+            printf("Final displacement = %f\n", local_displacement[n - 1] / 1000);
+            printf("Midpoint displacement = %f\n", local_displacement[n / 2] / 1000);
+            printf("quarter displacement = %f\n", local_displacement[n / 4] / 1000);
+            printf("1000th displacement = %f\n", local_displacement[1000 * 10000] / 1000);
+    #endif
     }
     // Make sure all ranks have the full new default table
     MPI_Bcast(&local_displacement[0], n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // END PHASE 2: Every rank has the same updated local_displacement table now
 
-
     // TRACE: Final double check on the SECOND MPI_Reduce and trace output of second phase
-    if(my_rank == 0)
+    if (my_rank == 0)
     {
-#ifdef DEBUG_TRACE
-        // Now rank zero has the data from each of the other ranks in one new table
-        printf("\nTRACE: Rank %d sum of local_displacement = %lf\n", my_rank, final_displacement);
-        // for(int idx = 0; idx < n; idx+=100)
-        //     printf("t=%d: a=%lf for v=%lf and d=%lf\n", idx, idx * step_size, local_velocity[idx-1], local_displacement[idx-1]);
-#endif
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        fnow = (double)now.tv_sec + (double)now.tv_nsec / 1000000000.0;
+        printf("\nExecution time %lf\n", fnow - fstart);
+
+    #ifdef DEBUG_TRACE
+            // Now rank zero has the data from each of the other ranks in one new table
+            printf("\nTRACE: Rank %d sum of local_displacement = %lf\n", my_rank, final_displacement);
+
+    #endif
+        printf("Final displacement(km) = %f\n", local_displacement[n - 1] / 1000);
+        printf("Steady State peak velocity(km/h)= %f\n", local_velocity[n / 2] * 3.6);
     }
 
     MPI_Finalize();
     return 0;
 }
-
 
 // Function to perform Simpson's rule integration and populate an array if needed
 double Simpson(double left_endpt, double right_endpt, int num_intervals, double base_len, double *values)

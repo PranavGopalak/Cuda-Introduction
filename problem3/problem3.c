@@ -40,7 +40,7 @@ const int MAX_STRING = 512;
 double func_to_integrate(double x);
 double func_velocity(double time, double *velocity_profile, double step_size);
 double Simpson(double left_endpt, double right_endpt, int num_intervals, double base_len, double *values);
-double Simpson_velo(double left_endpt, double right_endpt, int num_intervals, double base_len, double *values);
+double Simpson_velo(double left_endpt, double right_endpt, int num_intervals, double base_len, double *values, double *velocity_profile);
 
 int main(void)
 {
@@ -167,12 +167,12 @@ int main(void)
     local_final_displacement=0; //  for second integration
 
     // Now sum up the values in the new LUT function local_velocity
-    local_final_displacement= Simpson_velo(my_rank*subrange, (my_rank*subrange)+subrange, subrange, step_size, &local_displacement[my_rank*subrange]);
+    local_final_displacement= Simpson_velo(my_rank*subrange, (my_rank*subrange)+subrange, subrange, step_size, &local_displacement[my_rank*subrange], local_velocity);
     
     // This should be the summation of the sums, which should match the spreadsheet for a train profile for dt=1.0
     MPI_Reduce(&local_final_displacement, &final_displacement, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     if(my_rank == 0) {
-        printf("\nFinal Displacement = %lf\n", final_displacement * 3.6);
+        printf("\nFinal Displacement = %lf\n", final_displacement/1000);
     }
 
     // DISTRIBUTE: Finally correct and overwrite all local_velocity_of_sums, update all ranks with full table by sending
@@ -191,9 +191,10 @@ int main(void)
             for(int idx = q*subrange; idx < (q*subrange)+subrange; idx++)
                 local_displacement[idx] += local_displacement[((q-1)*subrange)+subrange-1];
         }
-        printf("Final displacement = %f\n", local_displacement[n-1] * 3.6);
-        printf("Midpoint displacement = %f\n", local_displacement[n/2] * 3.6);
-        printf("quarter displacement = %f\n", local_displacement[n/4] * 3.6);
+        printf("Final displacement = %f\n", local_displacement[n-1]/1000);
+        printf("Midpoint displacement = %f\n", local_displacement[n/2]/1000);
+        printf("quarter displacement = %f\n", local_displacement[n/4]/1000);
+        printf("1000th displacement = %f\n", local_displacement[1000 * 10000]/1000);
     }
     // Make sure all ranks have the full new default table
     MPI_Bcast(&local_displacement[0], n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -252,7 +253,7 @@ double Simpson(double left_endpt, double right_endpt, int num_intervals, double 
     return estimate;
 }
 
-double Simpson_velo(double left_endpt, double right_endpt, int num_intervals, double base_len, double *values)
+double Simpson_velo(double left_endpt, double right_endpt, int num_intervals, double base_len, double *values, double *velocity_profile)
 {
     double estimate, x;
     int i;
@@ -265,7 +266,7 @@ double Simpson_velo(double left_endpt, double right_endpt, int num_intervals, do
     double left_time = left_endpt * base_len;
     double right_time = right_endpt * base_len;
 
-    estimate = func_to_integrate(left_time) + func_to_integrate(right_time);
+    estimate = func_velocity(left_time, velocity_profile, base_len) + func_velocity(right_time, velocity_profile, base_len);
 
     // Sum up contributions from the internal points
     for (i = 1; i <= num_intervals - 1; i++)
@@ -273,11 +274,11 @@ double Simpson_velo(double left_endpt, double right_endpt, int num_intervals, do
         x = left_time + i * base_len;
         if (i % 2 == 0)
         {
-            estimate += 2 * func_to_integrate(x);
+            estimate += 2 * func_velocity(x, velocity_profile, base_len);
         }
         else
         {
-            estimate += 4 * func_to_integrate(x);
+            estimate += 4 * func_velocity(x, velocity_profile, base_len);
         }
         values[i] = estimate * base_len / 3.0;
     }
@@ -293,6 +294,5 @@ double func_to_integrate(double x)
 
 double func_velocity(double time, double *velocity_profile, double step_size)
 {
-    // return fvelocity(time, velocity_profile, step_size);
-    return 0;
+    return fvelo(time);
 }

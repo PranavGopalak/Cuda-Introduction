@@ -33,6 +33,6 @@ problem2-b:	problem2-b.c
 	$(CC) $(CFLAGS) -o $@ problem2-b.c $(LIB_DIRS) -lm
 
 problem3:	problem3.c
-	$(CC) $(CFLAGS) -o $@ problem3.c timeinterp.c $(LIB_DIRS) -lm
+	$(CC) $(CFLAGS) -o $@ problem3.c timeinterp.c ex4vel.h ex4accel.h $(LIB_DIRS) -lm
 
 

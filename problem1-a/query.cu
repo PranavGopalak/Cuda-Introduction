@@ -39,9 +39,10 @@ int main() {
         printf("  Concurrent Kernels:                        %s\n", deviceProp.concurrentKernels ? "Yes" : "No");
         printf("  Device Overlap:                            %s\n", deviceProp.deviceOverlap ? "Yes" : "No");
         printf("  Compute Mode:                              %d\n", deviceProp.computeMode);
-        printf("Number of Streaming Multiprocessors (SMs): %d\n", deviceProp.multiProcessorCount);
-        long long totalMaxBlocks = (long long)deviceProp.maxGridSize[0];
+        printf("Maximum threads per block: %d\n", deviceProp.maxThreadsPerMultiProcessor);
+        long long totalMaxBlocks = (long long)deviceProp.maxGridSize[0] * (long long)deviceProp.maxGridSize[1] * (long long)deviceProp.maxGridSize[2];
         printf("Total maximum number of blocks: %lld\n", totalMaxBlocks);
+	printf("Theoretical mamimum threads %lld * %d\n:", totalMaxBlocks, deviceProp.maxThreadsPerMultiProcessor); 
     }
 
     return EXIT_SUCCESS;

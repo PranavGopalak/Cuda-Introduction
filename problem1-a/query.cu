@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
-#include <stdlib.h>  // Add this line
+#include <stdlib.h>
 
 int main() {
     int deviceCount = 0;
@@ -40,11 +40,8 @@ int main() {
         printf("  Device Overlap:                            %s\n", deviceProp.deviceOverlap ? "Yes" : "No");
         printf("  Compute Mode:                              %d\n", deviceProp.computeMode);
         printf("Number of Streaming Multiprocessors (SMs): %d\n", deviceProp.multiProcessorCount);
-        long long totalMaxBlocks = (long long)deviceProp.maxGridSize[0] *
-        (long long)deviceProp.maxGridSize[1] *
-        (long long)deviceProp.maxGridSize[2];
+        long long totalMaxBlocks = (long long)deviceProp.maxGridSize[0];
         printf("Total maximum number of blocks: %lld\n", totalMaxBlocks);
-        // Add more properties as needed
     }
 
     return EXIT_SUCCESS;

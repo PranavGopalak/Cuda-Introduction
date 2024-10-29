@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Failed to get printf buffer size: %s\n", cudaGetErrorString(err));
     }
     printf("Maximum Threads Per Block:                 %d\n", deviceProp.maxThreadsPerBlock);
-    long long totalMaxBlocks = (long long)deviceProp.maxGridSize[0] * (long long)deviceProp.maxGridSize[1] * (long long)deviceProp.maxGridSize[2];
+    long long totalMaxBlocks = (long long)deviceProp.maxGridSize[0];
     printf("Total maximum number of blocks: %lld\n", totalMaxBlocks);
     printf("Total Possible hello messages = %lld x %d\n", totalMaxBlocks , deviceProp.maxThreadsPerBlock);
     Hello<<<blk_ct, th_per_blk>>>();

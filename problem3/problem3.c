@@ -95,9 +95,7 @@ int main(int argc, char *argv[])
     subrange = n / comm_sz;
     residual = n % comm_sz;
 
-#ifdef DEBUG_TRACE
-    printf("Went parallel: rank %d of %d doing work %d with residual %d\n", my_rank, comm_sz, subrange, residual);
-#endif
+    printf("residual is %d\n", residual);
     // START PARALLEL PHASE 1: Sum original DefaultProfile LUT by rank
     //
 
